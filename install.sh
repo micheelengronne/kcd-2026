@@ -6,4 +6,5 @@ helm upgrade --install -f spire-values.yml -n spire spire spire --repo https://s
 
 kubectl apply -f kubevirt-operator.yaml
 
-helm upgrade --install -f vault-values.yml --create-namespace -n vault vault vault --repo https://helm.releases.hashicorp.com
+# Check if demo without vault
+#helm upgrade --install -f vault-values.yml --create-namespace -n vault vault vault --repo https://helm.releases.hashicorp.com
