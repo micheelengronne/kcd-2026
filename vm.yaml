@@ -35,6 +35,8 @@ stringData:
             WorkloadAttestor "unix" {
               plugin_data {}
             }
+            WorkloadAttestor "systemd" {
+            }
           }
       - path: /etc/systemd/system/spire-agent.service
         content: |
@@ -109,4 +111,3 @@ spec:
           secret:
             secretName: spire-vm-bootstrap
             volumeLabel: spire-bootstrap
-
