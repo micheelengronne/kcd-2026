@@ -12,8 +12,6 @@ stringData:
       - name: cloud
         sudo: ALL=(ALL) NOPASSWD:ALL
         shell: /bin/bash
-        ssh_authorized_keys:
-          - ssh-ed25519 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     write_files:
       - path: /etc/spire/agent.conf
         permissions: "0600"
@@ -56,6 +54,8 @@ stringData:
         mount -o ro -L spire-bootstrap /mnt/bootstrap
         cp /mnt/bootstrap/bundle.pem /etc/spire/bundle.pem
         sed -i "s|@JOIN_TOKEN@|$(cat /mnt/bootstrap/join_token)|" /etc/spire/agent.conf
+        install -d -m 700 -o cloud -g cloud /home/cloud/.ssh
+        install -m 600 -o cloud -g cloud /mnt/bootstrap/authorized_keys /home/cloud/.ssh/authorized_keys
         umount /mnt/bootstrap
       - |
         set -e
