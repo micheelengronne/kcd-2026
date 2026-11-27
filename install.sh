@@ -6,5 +6,14 @@ helm upgrade --install -f spire-values.yml -n spire spire spire --repo https://s
 
 kubectl apply -f kubevirt-operator.yaml
 
+kubectl -n spire-server exec spire-server-0 -- \
+  /opt/spire/bin/spire-server token generate \
+  -spiffeID spiffe://example.test/vm/spire-vm -ttl 600 > join_token
+
+kubectl -n spire-server exec spire-server-0 -- \
+  /opt/spire/bin/spire-server bundle show > bundle.pem
+
+kubectl apply -k .
+
 # Check if demo without vault
 #helm upgrade --install -f vault-values.yml --create-namespace -n vault vault vault --repo https://helm.releases.hashicorp.com

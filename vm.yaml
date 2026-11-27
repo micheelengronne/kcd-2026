@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: spire-vm-cloudinit
+  namespace: default
+type: Opaque
+stringData:
+  userdata: |
+    #cloud-config
+    hostname: spire-vm
+    users:
+      - name: cloud
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        shell: /bin/bash
+        ssh_authorized_keys:
+          - ssh-ed25519 AAAA...REPLACE_ME
+    write_files:
+      - path: /etc/spire/agent.conf
+        permissions: "0600"
+        content: |
+          agent {
+            data_dir          = "/var/lib/spire-agent"
+            log_level         = "INFO"
+            server_address    = "spire-server.spire.svc.cluster.local"
+            server_port       = "8081"
+            socket_path       = "/run/spire/agent.sock"
+            trust_domain      = "example.org"
+            trust_bundle_path = "/etc/spire/bundle.pem"
+            join_token        = "@JOIN_TOKEN@"
+          }
+          plugins {
+            KeyManager "disk" {
+              plugin_data { directory = "/var/lib/spire-agent" }
+            }
+            WorkloadAttestor "unix" {
+              plugin_data {}
+            }
+          }
+      - path: /etc/systemd/system/spire-agent.service
+        content: |
+          [Unit]
+          Description=SPIRE Agent
+          After=network-online.target
+          Wants=network-online.target
+          [Service]
+          ExecStart=/opt/spire/bin/spire-agent run -config /etc/spire/agent.conf
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+    runcmd:
+      - |
+        set -e
+        mkdir -p /mnt/bootstrap /etc/spire
+        mount -o ro -L spire-bootstrap /mnt/bootstrap
+        cp /mnt/bootstrap/bundle.pem /etc/spire/bundle.pem
+        sed -i "s|@JOIN_TOKEN@|$(cat /mnt/bootstrap/join_token)|" /etc/spire/agent.conf
+        umount /mnt/bootstrap
+      - |
+        set -e
+        V=1.11.0   # pin to your SPIRE server's version; check the exact release asset name
+        mkdir -p /opt/spire /var/lib/spire-agent /run/spire
+        curl -fsSL "https://github.com/spiffe/spire/releases/download/v${V}/spire-${V}-linux-amd64-musl.tar.gz" \
+          | tar -xz -C /opt/spire --strip-components=1
+      - systemctl daemon-reload
+      - systemctl enable --now spire-agent
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: spire-vm
+  namespace: default
+spec:
+  runStrategy: Always
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: spire-vm
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        resources:
+          requests:
+            memory: 2Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk: { bus: virtio }
+            - name: cloudinit
+              disk: { bus: virtio }
+            - name: spire-bootstrap
+              disk: { bus: virtio }
+              serial: SPIREBOOT
+          interfaces:
+            - name: default
+              masquerade: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: rootdisk
+          containerDisk:
+            image: quay.io/containerdisks/ubuntu:22.04
+        - name: cloudinit
+          cloudInitNoCloud:
+            secretRef:
+              name: spire-vm-cloudinit
+        - name: spire-bootstrap
+          secret:
+            secretName: spire-vm-bootstrap
+            volumeLabel: spire-bootstrap
+
