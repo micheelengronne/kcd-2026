@@ -8,10 +8,12 @@ stringData:
   userdata: |
     #cloud-config
     hostname: spire-vm
+    fqdn: spire-vm.example.test
     users:
       - name: cloud
         sudo: ALL=(ALL) NOPASSWD:ALL
         shell: /bin/bash
+    packages: [git, make, curl, golang-go]
     write_files:
       - path: /etc/spire/agent.conf
         permissions: "0600"
@@ -50,24 +52,62 @@ stringData:
           Restart=always
           [Install]
           WantedBy=multi-user.target
+      - path: /etc/spiffe/step-ssh/main.conf
+        permissions: "0644"
+        content: |
+          SPIFFE_STEP_SSH_URL=https://spiffe-step-ssh.example.test
+          SPIFFE_STEP_SSH_FETCHCA_URL=https://spiffe-step-ssh-fetchca.example.test
+          SPIFFE_ENDPOINT_SOCKET=unix:///run/spire/agent/sockets/main/public/api.sock
+      - path: /usr/local/sbin/enable-ssh-hostcert.sh
+        permissions: "0755"
+        content: |
+          #!/bin/bash
+          # Wait up to 15 min (emulated VMs are slow) for spiffe-step-ssh to issue the host cert.
+          for i in $(seq 1 180); do
+            cert=$(ls /etc/ssh/ssh_host_*_key-cert.pub 2>/dev/null | head -1)
+            [ -n "$cert" ] && break
+            sleep 5
+          done
+          if [ -z "$cert" ]; then
+            echo "no host certificate found; leaving sshd unchanged"
+            exit 0
+          fi
+          key=${cert%-cert.pub}
+          printf 'HostKey %s\nHostCertificate %s\n' "$key" "$cert" > /etc/ssh/sshd_config.d/50-host-cert.conf
+          if sshd -t; then
+            systemctl reload ssh
+            echo "sshd now presents $cert"
+          else
+            rm -f /etc/ssh/sshd_config.d/50-host-cert.conf
+            echo "sshd -t failed; reverted"
+          fi
     runcmd:
+      # Bootstrap disk (bundle, join token, your public key)
       - |
         set -e
-        mkdir -p /mnt/bootstrap /etc/spire
+        mkdir -p /mnt/bootstrap /etc/spire /var/lib/spire-agent /opt/spire /etc/spiffe/step-ssh
         mount -o ro -L spire-bootstrap /mnt/bootstrap
         cp /mnt/bootstrap/bundle.pem /etc/spire/bundle.pem
         sed -i "s|@JOIN_TOKEN@|$(cat /mnt/bootstrap/join_token)|" /etc/spire/agent.conf
         install -d -m 700 -o cloud -g cloud /home/cloud/.ssh
         install -m 600 -o cloud -g cloud /mnt/bootstrap/authorized_keys /home/cloud/.ssh/authorized_keys
         umount /mnt/bootstrap
+      # Binaries (amd64 or arm64)
       - |
         set -e
-        V=1.11.0   # pin to your SPIRE server's version; check the exact release asset name
-        mkdir -p /opt/spire /var/lib/spire-agent /run/spire
-        curl -fsSL "https://github.com/spiffe/spire/releases/download/v${V}/spire-${V}-linux-amd64-musl.tar.gz" \
+        ARCH=$(dpkg --print-architecture)
+        V=1.11.0   # match your SPIRE server; check the exact release asset name
+        curl -fsSL "https://github.com/spiffe/spire/releases/download/v${V}/spire-${V}-linux-${ARCH}-musl.tar.gz" \
           | tar -xz -C /opt/spire --strip-components=1
+        curl -fsSLo /tmp/step.deb "https://dl.smallstep.com/cli/docs-cli-install/latest/step-cli_${ARCH}.deb"
+        dpkg -i /tmp/step.deb
+        git clone --depth 1 --tag v0.3.0 https://github.com/spiffe/spiffe-step-ssh /opt/spiffe-step-ssh
+        make -C /opt/spiffe-step-ssh install
       - systemctl daemon-reload
       - systemctl enable --now spire-agent
+      - sleep 10
+      - systemctl enable --now spiffe-step-ssh@main || true
+      - /usr/local/sbin/enable-ssh-hostcert.sh
 ---
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
