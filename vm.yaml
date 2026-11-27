@@ -78,6 +78,9 @@ spec:
       labels:
         kubevirt.io/vm: spire-vm
     spec:
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      architecture: amd64
       domain:
         cpu:
           cores: 2

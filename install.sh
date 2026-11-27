@@ -12,6 +12,9 @@ helm upgrade --install -f spire-values.yml -n spire spire spire --repo https://s
 
 kubectl apply -f kubevirt-operator.yaml
 
+oc annotate hyperconverged kubevirt-hyperconverged -n openshift-cnv --overwrite \
+  kubevirt.kubevirt.io/jsonpatch='[{"op":"add","path":"/spec/configuration/developerConfiguration","value":{"useEmulation":true,"featureGates":["MultiArchitecture"]}}]'
+
 kubectl -n spire-server exec spire-server-0 -- \
   /opt/spire/bin/spire-server token generate \
   -spiffeID spiffe://example.test/vm/spire-vm -ttl 600 > join_token
