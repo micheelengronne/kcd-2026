@@ -13,7 +13,7 @@ stringData:
         sudo: ALL=(ALL) NOPASSWD:ALL
         shell: /bin/bash
         ssh_authorized_keys:
-          - ssh-ed25519 AAAA...REPLACE_ME
+          - ssh-ed25519 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     write_files:
       - path: /etc/spire/agent.conf
         permissions: "0600"
@@ -21,10 +21,10 @@ stringData:
           agent {
             data_dir          = "/var/lib/spire-agent"
             log_level         = "INFO"
-            server_address    = "spire-server.spire.svc.cluster.local"
+            server_address    = "spire-server.spire-server.svc.cluster.local"
             server_port       = "8081"
             socket_path       = "/run/spire/agent.sock"
-            trust_domain      = "example.org"
+            trust_domain      = "example.test"
             trust_bundle_path = "/etc/spire/bundle.pem"
             join_token        = "@JOIN_TOKEN@"
           }
