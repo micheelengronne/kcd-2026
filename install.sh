@@ -17,7 +17,7 @@ oc annotate hyperconverged kubevirt-hyperconverged -n openshift-cnv --overwrite 
 
 kubectl -n spire-server exec spire-server-0 -- \
   /opt/spire/bin/spire-server token generate \
-  -spiffeID spiffe://example.test/vm/spire-vm -ttl 600 > join_token
+  -spiffeID spiffe://example.test/vm/spire-vm -ttl 600 | awk '/Token:/{print $2}' > join_token
 
 kubectl -n spire-server exec spire-server-0 -- \
   /opt/spire/bin/spire-server bundle show > bundle.pem
