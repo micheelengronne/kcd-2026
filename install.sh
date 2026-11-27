@@ -22,14 +22,3 @@ kubectl -n spire-server exec spire-server-0 -- \
 ssh-keygen -t ed25519 -N '' -f ./id_ed25519
 
 kubectl apply -k .
-
-kubectl -n spire-server exec spire-server-0 -- \
-  /opt/spire/bin/spire-server entry create \
-  -parentID spiffe://example.test/vm/spire-vm \
-  -spiffeID spiffe://example.test/vm/spire-vm/kcdbinary \
-  -selector unix:uid:1000
-
-#virtctl ssh cloud@vm/spire-vm -n default -i ./id_ed25519
-
-# Check if demo without vault
-#helm upgrade --install -f vault-values.yml --create-namespace -n vault vault vault --repo https://helm.releases.hashicorp.com
