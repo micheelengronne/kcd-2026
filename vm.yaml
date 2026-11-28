@@ -23,7 +23,7 @@ stringData:
             log_level         = "INFO"
             server_address    = "spire-server.spire-server.svc.cluster.local"
             server_port       = "443"
-            socket_path       = "/run/spire/agent.sock"
+            socket_path       = "/run/spire/agent/sockets/main/public/api.sock"
             trust_domain      = "example.test"
             trust_bundle_path = "/etc/spire/bundle.pem"
             join_token        = "@JOIN_TOKEN@"
@@ -55,8 +55,8 @@ stringData:
       - path: /etc/spiffe/step-ssh/main.conf
         permissions: "0644"
         content: |
-          SPIFFE_STEP_SSH_URL=https://spiffe-step-ssh.example.test
-          SPIFFE_STEP_SSH_FETCHCA_URL=https://spiffe-step-ssh-fetchca.example.test
+          SPIFFE_STEP_SSH_URL=https://spiffe-step-ssh.spiffe-step-ssh.svc.cluster.local:8443
+          SPIFFE_STEP_SSH_FETCHCA_URL=https://spiffe-step-ssh-fetchca.spiffe-step-ssh.svc.cluster.local
           SPIFFE_ENDPOINT_SOCKET=unix:///run/spire/agent/sockets/main/public/api.sock
       - path: /usr/local/sbin/enable-ssh-hostcert.sh
         permissions: "0755"
@@ -101,13 +101,42 @@ stringData:
           | tar -xz -C /opt/spire --strip-components=1
         curl -fsSLo /tmp/step.deb "https://dl.smallstep.com/cli/docs-cli-install/latest/step-cli_${ARCH}.deb"
         dpkg -i /tmp/step.deb
-        git clone --depth 1 --tag v0.3.0 https://github.com/spiffe/spiffe-step-ssh /opt/spiffe-step-ssh
+        git clone --depth 1 --branch v0.3.0 https://github.com/spiffe/spiffe-step-ssh /opt/spiffe-step-ssh
         make -C /opt/spiffe-step-ssh install
+      # Spire helper
+      - |
+        set -e
+        V=v0.11.0
+        case "$(dpkg --print-architecture)" in
+          amd64) ARCH_RE="amd64|x86_64" ;;
+          arm64) ARCH_RE="arm64|aarch64" ;;
+        esac
+        URL=$(curl -fsSL https://api.github.com/repos/spiffe/spiffe-helper/releases/tags/$V \
+          | grep browser_download_url | cut -d'"' -f4 \
+          | grep -i linux | grep -iE "$ARCH_RE" | grep -viE 'sha|sig|\.txt|\.pem' | head -1)
+        d=$(mktemp -d); curl -fsSL "$URL" -o "$d/asset"
+        case "$URL" in
+          *.tar.gz|*.tgz) tar -xzf "$d/asset" -C "$d" ;;
+          *.zip)          apt-get install -y unzip && unzip -q "$d/asset" -d "$d" ;;
+          *)              cp "$d/asset" "$d/spiffe-helper" ;;
+        esac
+        install -m 0755 "$(find "$d" -type f -name spiffe-helper | head -1)" /usr/local/bin/spiffe-helper
+      - |
+        tee /etc/spiffe/step-ssh/agent_address.hcl <<'EOF'
+
+        agent_address = "/run/spire/agent/sockets/main/public/api.sock"
+        EOF
+
+        mkdir -p /etc/systemd/system/spiffe-step-ssh@.service.d
+        tee /etc/systemd/system/spiffe-step-ssh@.service.d/agent-address.conf <<'EOF'
+        [Service]
+        ExecStartPre=/bin/bash -c "cat /etc/spiffe/step-ssh/agent_address.hcl >> /var/run/spiffe/step-ssh/%i/helper.conf"
+        EOF
       - systemctl daemon-reload
       - systemctl enable --now spire-agent
-      - sleep 10
+      #- sleep 10
       - systemctl enable --now spiffe-step-ssh@main || true
-      - /usr/local/sbin/enable-ssh-hostcert.sh
+      #- /usr/local/sbin/enable-ssh-hostcert.sh
 ---
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
@@ -116,6 +145,17 @@ metadata:
   namespace: default
 spec:
   runStrategy: Always
+  dataVolumeTemplates:
+    - metadata:
+        name: spire-vm-root
+      spec:
+        source:
+          registry:
+            url: docker://quay.io/containerdisks/ubuntu:22.04
+        storage:
+          resources:
+            requests:
+              storage: 20Gi
   template:
     metadata:
       labels:
@@ -147,8 +187,8 @@ spec:
           pod: {}
       volumes:
         - name: rootdisk
-          containerDisk:
-            image: quay.io/containerdisks/ubuntu:22.04
+          dataVolume:
+            name: spire-vm-root
         - name: cloudinit
           cloudInitNoCloud:
             secretRef:
