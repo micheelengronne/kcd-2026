@@ -55,7 +55,7 @@ stringData:
       - path: /etc/spiffe/step-ssh/main.conf
         permissions: "0644"
         content: |
-          SPIFFE_STEP_SSH_URL=https://spiffe-step-ssh.spiffe-step-ssh.svc.cluster.local:8443
+          SPIFFE_STEP_SSH_URL=https://spiffe-step-ssh.spiffe-step-ssh.svc.cluster.local
           SPIFFE_STEP_SSH_FETCHCA_URL=https://spiffe-step-ssh-fetchca.spiffe-step-ssh.svc.cluster.local
           SPIFFE_ENDPOINT_SOCKET=unix:///run/spire/agent/sockets/main/public/api.sock
       - path: /usr/local/sbin/enable-ssh-hostcert.sh
@@ -64,7 +64,7 @@ stringData:
           #!/bin/bash
           # Wait up to 15 min (emulated VMs are slow) for spiffe-step-ssh to issue the host cert.
           for i in $(seq 1 180); do
-            cert=$(ls /etc/ssh/ssh_host_*_key-cert.pub 2>/dev/null | head -1)
+            cert=$(ls /var/run/spiffe/step-ssh/main/ssh_host_*_key-cert.pub 2>/dev/null | head -1)
             [ -n "$cert" ] && break
             sleep 5
           done
@@ -134,9 +134,8 @@ stringData:
         EOF
       - systemctl daemon-reload
       - systemctl enable --now spire-agent
-      #- sleep 10
       - systemctl enable --now spiffe-step-ssh@main || true
-      #- /usr/local/sbin/enable-ssh-hostcert.sh
+      - /usr/local/sbin/enable-ssh-hostcert.sh
 ---
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine

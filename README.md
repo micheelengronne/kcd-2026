@@ -1,20 +1,22 @@
 # Spiffe/Spire
 
-Install spire, kubevirt and a VM with a spire-agent and workloadattestators.
+Install spire, spiffe-ssh and its step-ca, kubevirt and a VM with a spire-agent and workloadattestators.
 You may need to rerun it twice or thrice to handle CRDs.
 
 ```
 bash install.sh
 ```
 
-Create a spiffe entry for workloads inside the VM.
+Create a spiffe entry for ssh hostkeys inside the VM.
 
 ```
 bash spire-create-entry.sh
 ```
 
-Ssh to the VM.
+Add the SSH CA to the known hosts and ssh to the VM (with hostkeys automatically recognised).
 
 ```
 bash vm-ssh.sh
 ```
+
+Inside the VM, you can see the hostkeys set in `/etc/ssh/sshd_config.d/50-spiffe-step-ssh.conf`.

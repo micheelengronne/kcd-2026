@@ -2,7 +2,6 @@
 global:
   openshift: true
   spire:
-    #ingressControllerType: ingress-nginx
     clusterName: test-cluster
     trustDomain: example.test
     recommendations:
@@ -18,32 +17,28 @@ global:
       country: KCD
       organization: Kcd Suisse Romande
       commonName: example.test
-  spire-server:
-    #ingress:
-    #  enabled: true
-    #nodeAttestor:
-    #  httpChallenge:
-    #    enabled: true
-    controllerManager:
-      identities:
-        clusterSPIFFEIDs:
-          spiffe-step-ssh-config:
-            type: raw
-            namespaceSelector:
-              matchLabels:
-                "kubernetes.io/metadata.name": default
-            podSelector:
-              matchLabels:
-                app: spiffe-step-ssh
-                component: config
-          spiffe-step-ssh-fetchca:
-            type: raw
-            namespaceSelector:
-              matchLabels:
-                "kubernetes.io/metadata.name": default
-            podSelector:
-              matchLabels:
-                app: spiffe-step-ssh
-                component: fetchca
-            dnsNameTemplates:
-            - "spiffe-step-ssh-fetchca.spire-server.svc.cluster.local"
+spire-server:
+  controllerManager:
+    identities:
+      clusterSPIFFEIDs:
+        spiffe-step-ssh-config:
+          type: raw
+          namespaceSelector:
+            matchLabels:
+              "kubernetes.io/metadata.name": spiffe-step-ssh
+          podSelector:
+            matchLabels:
+              app: spiffe-step-ssh
+              component: config
+        spiffe-step-ssh-fetchca:
+          type: raw
+          namespaceSelector:
+            matchLabels:
+              "kubernetes.io/metadata.name": spiffe-step-ssh
+          podSelector:
+            matchLabels:
+              app: spiffe-step-ssh
+              component: fetchca
+          dnsNameTemplates:
+          - "spiffe-step-ssh-fetchca.{{ .TrustDomain }}"
+          - "spiffe-step-ssh-fetchca.spiffe-step-ssh.svc.cluster.local"

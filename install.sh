@@ -23,7 +23,10 @@ helm pull spiffe-step-ssh --repo https://spiffe.github.io/helm-charts-hardened/ 
 if [ ! -f ./artifacts/spiffe-step-ssh-password.txt ]; then
   PASSWORD=$(openssl rand -base64 48); echo "$PASSWORD" > ./artifacts/spiffe-step-ssh-password.txt
   step ca init --helm --deployment-type=Standalone --name='My CA' \
-    --dns spiffe-step-ssh-fetchca.spiffe-step-ssh.svc.cluster.local --dns spiffe-step-ssh-fetchca \
+    --dns spiffe-step-ssh-fetchca.spiffe-step-ssh.svc.cluster.local \
+    --dns spiffe-step-ssh-fetchca \
+    --dns spiffe-step-ssh.spiffe-step-ssh.svc.cluster.local \
+    --dns spiffe-step-ssh \
     --ssh --address :8443 --provisioner default \
     --password-file ./artifacts/spiffe-step-ssh-password.txt > ./artifacts/spiffe-step-ssh-values.yaml
 fi
