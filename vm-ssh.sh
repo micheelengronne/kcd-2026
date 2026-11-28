@@ -8,3 +8,6 @@ virtctl ssh cloud@vm/spire-vm -n default -i ./artifacts/id_ed25519 \
   --local-ssh-opts="-o GlobalKnownHostsFile=/dev/null" \
   --local-ssh-opts="-o HostKeyAlias=spire-vm.example.test" \
   --local-ssh-opts="-o StrictHostKeyChecking=yes"
+
+# If it fails, fallback to:
+#	virtctl ssh cloud@vm/spire-vm -n default -i ./artifacts/id_ed25519
