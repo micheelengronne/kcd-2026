@@ -9,9 +9,9 @@ resources:
 secretGenerator:
   - name: spire-vm-bootstrap
     files:
-      - bundle.pem   # local file next to this kustomization
-      - join_token
-      - authorized_keys=./id_ed25519.pub
+      - bundle.pem=./artifacts/bundle.pem   # local file next to this kustomization
+      - join_token=./artifacts/join_token
+      - authorized_keys=./artifacts/id_ed25519.pub
 
 generatorOptions:
   disableNameSuffixHash: true
