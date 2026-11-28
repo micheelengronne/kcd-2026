@@ -13,7 +13,7 @@ Create a spiffe entry for ssh hostkeys inside the VM.
 bash spire-create-entry.sh
 ```
 
-Add the SSH CA to the known hosts and ssh to the VM (with hostkeys automatically recognised).
+After 5 minutes (the VM is slow), add the SSH CA to the known hosts and ssh to the VM (with hostkeys automatically recognised).
 
 ```
 bash vm-ssh.sh
